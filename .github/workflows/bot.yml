@@ -1,26 +1,33 @@
-name: Run Bot
-
+name: Update WISX Report to Google Sheet
 on:
   schedule:
-    - cron: "*/30 * * * *"  # Every 30 minutes
+    - cron: "30 1 * * *"  # Runs every day at 6:00 AM IST
   workflow_dispatch:
 
 jobs:
-  run-bot:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Node
+        uses: actions/setup-node@v3
         with:
-          python-version: "3.10"
+          node-version: "20"
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: npm install
 
-      - name: Run bot
-        run: |
-          python bot.py
+      - name: Decode Google Service Account Key
+        run: echo "$GOOGLE_SERVICE_ACCOUNT_KEY_BASE64" | base64 -d > service-account.json
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY_BASE64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}
+
+      - name: Download report from WISX
+        run: node scripts/login-and-download.js
+        env:
+          WISX_USERNAME: ${{ secrets.WISX_USERNAME }}
+          WISX_PASSWORD: ${{ secrets.WISX_PASSWORD }}
+
+      - name: Parse and upload to Google Sheet
+        run: node scripts/update-sheet.js
